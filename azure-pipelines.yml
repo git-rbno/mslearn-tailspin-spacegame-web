@@ -14,49 +14,49 @@ pool:
   demands:
   - npm
 
-variables:
-  buildConfiguration: 'Release'
+steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET Core SDK 3.1.300'
+  inputs:
+    version: 3.1.300
 
-stages:
-  - stage: 'Prepare'
-    displayName: 'Prepare'
+- task: Npm@1
+  displayName: 'Run npm install'
+  inputs:
+    verbose: false
 
-    steps:
-    - task: UseDotNet@2
-      displayName: 'Use .NET Core SDK 3.1.300'
-      inputs:
-        packageType: sdk
-        version: 3.1.300
-    
-    - task: Npm@1
-      displayName: 'Run npm install'
-      inputs:
-        verbose: false
-    
-    - script: './node_modules/.bin/node-sass Tailspin.SpaceGame.Web/wwwroot --output Tailspin.SpaceGame.Web/wwwroot'
-      displayName: 'Compile Sass assets'
-    
-    - task: gulp@1
-      displayName: 'Run gulp tasks'
-    
-    # In the build step that writes information about the build to a file, notice these elements: definition, buildId og BuildNumber
-    # $(Build.DefinitionName) specifies the name of the build pipeline. For example, "SpaceGame-Web-CI."
-    # $(Build.BuildId) is a numeric identifier for the completed build, like 115.
-    # $(Build.BuildNumber) is name of the completed build. You can configure the format, but by default the build number includes the current date followed by the build number for that day. An example build number is "20190329.1."   
-    - script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
-      displayName: 'Write build info'
-      workingDirectory: Tailspin.SpaceGame.Web/wwwroot
-    
-      #the DotNetCoreCLI@2 task maps to the dotnet command-line utility. The pipeline uses DotNetCoreCLI@2 two times: one time to restore, or install, the project's dependencies, and one time to build the project.
-    - task: DotNetCoreCLI@2
-      displayName: 'Restore project dependencies'
-      inputs:
-        command: 'restore'
-        projects: '**/*.csproj'
-    
-    - task: DotNetCoreCLI@2
-      displayName: 'Build the project - Release'
-      inputs:
-        command: 'build'
-        arguments: '--no-restore --configuration Release'
-        projects: '**/*.csproj'
+- script: './node_modules/.bin/node-sass Tailspin.SpaceGame.Web/wwwroot --output Tailspin.SpaceGame.Web/wwwroot'
+  displayName: 'Compile Sass assets'
+
+- task: gulp@1
+  displayName: 'Run gulp tasks'
+
+- script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
+  displayName: 'Write build info'
+  workingDirectory: Tailspin.SpaceGame.Web/wwwroot
+
+- task: DotNetCoreCLI@2
+  displayName: 'Restore project dependencies'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Build the project - Release'
+  inputs:
+    command: 'build'
+    arguments: '--no-restore --configuration Release'
+    projects: '**/*.csproj'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Publish the project - Release'
+  inputs:
+    command: 'publish'
+    projects: '**/*.csproj'
+    publishWebProjects: false
+    arguments: '--no-build --configuration Release --output $(Build.ArtifactStagingDirectory)/Release'
+    zipAfterPublish: true
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: drop'
+  condition: succeeded()
